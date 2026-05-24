@@ -19,6 +19,12 @@ func NewRouter(cfg config.Config, db *sql.DB) *gin.Engine {
 	leagueRepository := sqlite.NewLeagueRepository(db)
 	standingRepository := sqlite.NewStandingRepository(db)
 	predictionRepository := sqlite.NewPredictionRepository(db)
+	standingsService := service.NewStandingsService(
+		teamRepository,
+		matchRepository,
+		leagueRepository,
+		standingRepository,
+	)
 	leagueService := service.NewLeagueService(
 		teamRepository,
 		matchRepository,
@@ -30,9 +36,10 @@ func NewRouter(cfg config.Config, db *sql.DB) *gin.Engine {
 		teamRepository,
 		matchRepository,
 		leagueRepository,
+		standingsService,
 		service.NewStrengthBasedSimulator(nil),
 	)
-	leagueHandler := handler.NewLeagueHandler(leagueService)
+	leagueHandler := handler.NewLeagueHandler(leagueService, standingsService)
 	simulationHandler := handler.NewSimulationHandler(simulationService, leagueService)
 
 	router.GET("/health", healthHandler.GetHealth)
@@ -40,6 +47,7 @@ func NewRouter(cfg config.Config, db *sql.DB) *gin.Engine {
 	router.POST("/api/v1/league/reset", leagueHandler.ResetLeague)
 	router.GET("/api/v1/league", leagueHandler.GetLeague)
 	router.GET("/api/v1/teams", leagueHandler.ListTeams)
+	router.GET("/api/v1/standings", leagueHandler.ListStandings)
 	router.GET("/api/v1/fixtures", leagueHandler.ListFixtures)
 	router.GET("/api/v1/fixtures/:week", leagueHandler.ListFixturesByWeek)
 	router.POST("/api/v1/simulation/week/next", simulationHandler.PlayNextWeek)

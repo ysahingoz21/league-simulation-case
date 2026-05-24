@@ -127,8 +127,9 @@ func TestSimulationRoutesPlayNextWeek(t *testing.T) {
 	}
 
 	var playResponse struct {
-		Week    int               `json:"week"`
-		Matches []json.RawMessage `json:"matches"`
+		Week      int               `json:"week"`
+		Matches   []json.RawMessage `json:"matches"`
+		Standings []json.RawMessage `json:"standings"`
 	}
 	if err := json.Unmarshal(playRecorder.Body.Bytes(), &playResponse); err != nil {
 		t.Fatalf("decode simulation response: %v", err)
@@ -140,5 +141,54 @@ func TestSimulationRoutesPlayNextWeek(t *testing.T) {
 
 	if len(playResponse.Matches) != 2 {
 		t.Fatalf("expected 2 simulated matches, got %d", len(playResponse.Matches))
+	}
+
+	if len(playResponse.Standings) != 4 {
+		t.Fatalf("expected 4 standings in simulation response, got %d", len(playResponse.Standings))
+	}
+}
+
+func TestStandingsRouteReflectsPlayedWeek(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "app-standings.db")
+	db, err := dbpkg.OpenSQLite(dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+	defer db.Close()
+
+	if err := dbpkg.ApplySchema(db, filepath.Join("..", "..", "database", "schema.sql")); err != nil {
+		t.Fatalf("apply schema: %v", err)
+	}
+
+	router := NewRouter(config.Config{AppEnv: "test", Port: "8080", DBPath: dbPath}, db)
+
+	router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/api/v1/league/init", nil))
+	router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/api/v1/simulation/week/next", nil))
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/standings", nil)
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected standings status 200, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+
+	var response struct {
+		Standings []struct {
+			Played int `json:"played"`
+		} `json:"standings"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode standings response: %v", err)
+	}
+
+	if len(response.Standings) != 4 {
+		t.Fatalf("expected 4 standings, got %d", len(response.Standings))
+	}
+
+	for _, standing := range response.Standings {
+		if standing.Played != 1 {
+			t.Fatalf("expected each team to have played 1 match, got %d", standing.Played)
+		}
 	}
 }
