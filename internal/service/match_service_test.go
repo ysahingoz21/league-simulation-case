@@ -70,6 +70,15 @@ func TestMatchServiceUpdatePlayedMatchRecalculatesStandings(t *testing.T) {
 	if result.Standings[0].TeamName != "B Team" || result.Standings[0].Points != 3 {
 		t.Fatalf("expected B Team to lead after edit, got %+v", result.Standings[0])
 	}
+
+	refetched, err := matchSvc.GetMatch(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("refetch updated match: %v", err)
+	}
+
+	if refetched.HomeGoals == nil || refetched.AwayGoals == nil || *refetched.HomeGoals != 0 || *refetched.AwayGoals != 3 {
+		t.Fatalf("expected persisted updated score, got %+v", refetched)
+	}
 }
 
 func TestMatchServiceUpdateAfterWeekFourRefreshesPredictions(t *testing.T) {

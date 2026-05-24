@@ -340,6 +340,17 @@ func TestSimulationServicePlayAllFromFreshLeague(t *testing.T) {
 			t.Fatalf("expected team %s to have played %d matches, got %d", standing.TeamName, domain.TotalWeeks, standing.Played)
 		}
 	}
+
+	for _, week := range result.Weeks {
+		for _, match := range week.Matches {
+			if !match.IsPlayed() {
+				t.Fatalf("expected played match in play-all result, got %+v", match)
+			}
+			if match.HomeGoals == nil || match.AwayGoals == nil || *match.HomeGoals < 0 || *match.AwayGoals < 0 {
+				t.Fatalf("expected non-negative persisted goals, got %+v", match)
+			}
+		}
+	}
 }
 
 func TestSimulationServicePlayAllFromCurrentWeekTwo(t *testing.T) {
