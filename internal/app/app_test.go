@@ -127,9 +127,10 @@ func TestSimulationRoutesPlayNextWeek(t *testing.T) {
 	}
 
 	var playResponse struct {
-		Week      int               `json:"week"`
-		Matches   []json.RawMessage `json:"matches"`
-		Standings []json.RawMessage `json:"standings"`
+		Week        int               `json:"week"`
+		Matches     []json.RawMessage `json:"matches"`
+		Standings   []json.RawMessage `json:"standings"`
+		Predictions []json.RawMessage `json:"predictions"`
 	}
 	if err := json.Unmarshal(playRecorder.Body.Bytes(), &playResponse); err != nil {
 		t.Fatalf("decode simulation response: %v", err)
@@ -145,6 +146,10 @@ func TestSimulationRoutesPlayNextWeek(t *testing.T) {
 
 	if len(playResponse.Standings) != 4 {
 		t.Fatalf("expected 4 standings in simulation response, got %d", len(playResponse.Standings))
+	}
+
+	if len(playResponse.Predictions) != 0 {
+		t.Fatalf("expected no predictions before week 4, got %d", len(playResponse.Predictions))
 	}
 }
 
@@ -226,6 +231,7 @@ func TestSimulationRoutePlayAll(t *testing.T) {
 		Standings []struct {
 			Played int `json:"played"`
 		} `json:"standings"`
+		Predictions []json.RawMessage `json:"predictions"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
 		t.Fatalf("decode play-all response: %v", err)
@@ -243,9 +249,56 @@ func TestSimulationRoutePlayAll(t *testing.T) {
 		t.Fatalf("expected 4 standings, got %d", len(response.Standings))
 	}
 
+	if len(response.Predictions) != 4 {
+		t.Fatalf("expected 4 predictions after play-all, got %d", len(response.Predictions))
+	}
+
 	for _, standing := range response.Standings {
 		if standing.Played != 6 {
 			t.Fatalf("expected each team to have played 6 matches, got %d", standing.Played)
 		}
+	}
+}
+
+func TestPredictionRouteAtWeekFour(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "app-predictions.db")
+	db, err := dbpkg.OpenSQLite(dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+	defer db.Close()
+
+	if err := dbpkg.ApplySchema(db, filepath.Join("..", "..", "database", "schema.sql")); err != nil {
+		t.Fatalf("apply schema: %v", err)
+	}
+
+	router := NewRouter(config.Config{AppEnv: "test", Port: "8080", DBPath: dbPath}, db)
+	router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/api/v1/league/init", nil))
+	for i := 0; i < 4; i++ {
+		router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/api/v1/simulation/week/next", nil))
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/predictions", nil)
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected predictions status 200, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+
+	var response struct {
+		Week        int               `json:"week"`
+		Predictions []json.RawMessage `json:"predictions"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode predictions response: %v", err)
+	}
+
+	if response.Week != 4 {
+		t.Fatalf("expected prediction week 4, got %d", response.Week)
+	}
+
+	if len(response.Predictions) != 4 {
+		t.Fatalf("expected 4 predictions, got %d", len(response.Predictions))
 	}
 }

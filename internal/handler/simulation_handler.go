@@ -36,10 +36,11 @@ func (h SimulationHandler) PlayNextWeek(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"week":      result.Week,
-		"league":    leagueStateResponse(result.League),
-		"matches":   fixtureResponses(result.Matches, teams),
-		"standings": standingResponses(result.Standings),
+		"week":        result.Week,
+		"league":      leagueStateResponse(result.League),
+		"matches":     fixtureResponses(result.Matches, teams),
+		"standings":   standingResponses(result.Standings),
+		"predictions": predictionResponses(result.Predictions),
 	})
 }
 
@@ -63,10 +64,11 @@ func (h SimulationHandler) PlayWeek(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"week":      result.Week,
-		"league":    leagueStateResponse(result.League),
-		"matches":   fixtureResponses(result.Matches, teams),
-		"standings": standingResponses(result.Standings),
+		"week":        result.Week,
+		"league":      leagueStateResponse(result.League),
+		"matches":     fixtureResponses(result.Matches, teams),
+		"standings":   standingResponses(result.Standings),
+		"predictions": predictionResponses(result.Predictions),
 	})
 }
 
@@ -92,9 +94,10 @@ func (h SimulationHandler) PlayAll(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"league":    leagueStateResponse(result.League),
-		"weeks":     weeks,
-		"standings": standingResponses(result.Standings),
+		"league":      leagueStateResponse(result.League),
+		"weeks":       weeks,
+		"standings":   standingResponses(result.Standings),
+		"predictions": predictionResponses(result.Predictions),
 	})
 }
 

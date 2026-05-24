@@ -20,16 +20,18 @@ var (
 )
 
 type WeekSimulationResult struct {
-	Week      int
-	League    domain.LeagueState
-	Matches   []domain.Match
-	Standings []domain.Standing
+	Week        int
+	League      domain.LeagueState
+	Matches     []domain.Match
+	Standings   []domain.Standing
+	Predictions []domain.Prediction
 }
 
 type PlayAllResult struct {
-	League    domain.LeagueState
-	Weeks     []WeekSimulationResult
-	Standings []domain.Standing
+	League      domain.LeagueState
+	Weeks       []WeekSimulationResult
+	Standings   []domain.Standing
+	Predictions []domain.Prediction
 }
 
 type SimulationService interface {
@@ -39,12 +41,13 @@ type SimulationService interface {
 }
 
 type simulationService struct {
-	teams     repository.TeamRepository
-	matches   repository.MatchRepository
-	league    repository.LeagueRepository
-	standings StandingsService
-	simulator Simulator
-	now       func() time.Time
+	teams       repository.TeamRepository
+	matches     repository.MatchRepository
+	league      repository.LeagueRepository
+	standings   StandingsService
+	predictions PredictionService
+	simulator   Simulator
+	now         func() time.Time
 }
 
 func NewSimulationService(
@@ -52,15 +55,17 @@ func NewSimulationService(
 	matches repository.MatchRepository,
 	league repository.LeagueRepository,
 	standings StandingsService,
+	predictions PredictionService,
 	simulator Simulator,
 ) SimulationService {
 	return &simulationService{
-		teams:     teams,
-		matches:   matches,
-		league:    league,
-		standings: standings,
-		simulator: simulator,
-		now:       time.Now,
+		teams:       teams,
+		matches:     matches,
+		league:      league,
+		standings:   standings,
+		predictions: predictions,
+		simulator:   simulator,
+		now:         time.Now,
 	}
 }
 
@@ -136,9 +141,10 @@ func (s *simulationService) PlayAll(ctx context.Context) (PlayAllResult, error) 
 
 	final := results[len(results)-1]
 	return PlayAllResult{
-		League:    final.League,
-		Weeks:     results,
-		Standings: final.Standings,
+		League:      final.League,
+		Weeks:       results,
+		Standings:   final.Standings,
+		Predictions: final.Predictions,
 	}, nil
 }
 
@@ -196,6 +202,14 @@ func (s *simulationService) playWeek(ctx context.Context, week int, state domain
 		return WeekSimulationResult{}, fmt.Errorf("recalculate standings: %w", err)
 	}
 
+	predictions := []domain.Prediction{}
+	if week >= predictionStartWeek {
+		predictions, err = s.predictions.GenerateForCurrentWeek(ctx)
+		if err != nil {
+			return WeekSimulationResult{}, fmt.Errorf("generate predictions: %w", err)
+		}
+	}
+
 	updatedState, err := s.getLeagueState(ctx)
 	if err != nil {
 		return WeekSimulationResult{}, err
@@ -207,10 +221,11 @@ func (s *simulationService) playWeek(ctx context.Context, week int, state domain
 	}
 
 	return WeekSimulationResult{
-		Week:      week,
-		League:    updatedState,
-		Matches:   playedMatches,
-		Standings: updatedStandings,
+		Week:        week,
+		League:      updatedState,
+		Matches:     playedMatches,
+		Standings:   updatedStandings,
+		Predictions: predictions,
 	}, nil
 }
 
