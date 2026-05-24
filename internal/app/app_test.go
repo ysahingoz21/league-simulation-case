@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -300,5 +301,82 @@ func TestPredictionRouteAtWeekFour(t *testing.T) {
 
 	if len(response.Predictions) != 4 {
 		t.Fatalf("expected 4 predictions, got %d", len(response.Predictions))
+	}
+}
+
+func TestMatchRoutesGetAndPatch(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "app-match-edit.db")
+	db, err := dbpkg.OpenSQLite(dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+	defer db.Close()
+
+	if err := dbpkg.ApplySchema(db, filepath.Join("..", "..", "database", "schema.sql")); err != nil {
+		t.Fatalf("apply schema: %v", err)
+	}
+
+	router := NewRouter(config.Config{AppEnv: "test", Port: "8080", DBPath: dbPath}, db)
+	router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/api/v1/league/init", nil))
+	router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/api/v1/simulation/week/next", nil))
+
+	getRecorder := httptest.NewRecorder()
+	getRequest := httptest.NewRequest(http.MethodGet, "/api/v1/matches/1", nil)
+	router.ServeHTTP(getRecorder, getRequest)
+	if getRecorder.Code != http.StatusOK {
+		t.Fatalf("expected get match status 200, got %d body=%s", getRecorder.Code, getRecorder.Body.String())
+	}
+
+	body := bytes.NewBufferString(`{"home_goals":0,"away_goals":3}`)
+	patchRecorder := httptest.NewRecorder()
+	patchRequest := httptest.NewRequest(http.MethodPatch, "/api/v1/matches/1", body)
+	patchRequest.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(patchRecorder, patchRequest)
+
+	if patchRecorder.Code != http.StatusOK {
+		t.Fatalf("expected patch match status 200, got %d body=%s", patchRecorder.Code, patchRecorder.Body.String())
+	}
+
+	var patchResponse struct {
+		Standings []struct {
+			TeamName string `json:"team_name"`
+		} `json:"standings"`
+	}
+	if err := json.Unmarshal(patchRecorder.Body.Bytes(), &patchResponse); err != nil {
+		t.Fatalf("decode patch response: %v", err)
+	}
+
+	if len(patchResponse.Standings) != 4 {
+		t.Fatalf("expected 4 standings, got %d", len(patchResponse.Standings))
+	}
+
+	if patchResponse.Standings[0].TeamName != "B Team" {
+		t.Fatalf("expected B Team to lead after edit, got %s", patchResponse.Standings[0].TeamName)
+	}
+}
+
+func TestMatchPatchRejectsNegativeGoals(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "app-match-invalid.db")
+	db, err := dbpkg.OpenSQLite(dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+	defer db.Close()
+
+	if err := dbpkg.ApplySchema(db, filepath.Join("..", "..", "database", "schema.sql")); err != nil {
+		t.Fatalf("apply schema: %v", err)
+	}
+
+	router := NewRouter(config.Config{AppEnv: "test", Port: "8080", DBPath: dbPath}, db)
+	router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/api/v1/league/init", nil))
+
+	body := bytes.NewBufferString(`{"home_goals":-1,"away_goals":2}`)
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPatch, "/api/v1/matches/1", body)
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d body=%s", recorder.Code, recorder.Body.String())
 	}
 }
