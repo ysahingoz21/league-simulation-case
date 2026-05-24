@@ -192,3 +192,60 @@ func TestStandingsRouteReflectsPlayedWeek(t *testing.T) {
 		}
 	}
 }
+
+func TestSimulationRoutePlayAll(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "app-play-all.db")
+	db, err := dbpkg.OpenSQLite(dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+	defer db.Close()
+
+	if err := dbpkg.ApplySchema(db, filepath.Join("..", "..", "database", "schema.sql")); err != nil {
+		t.Fatalf("apply schema: %v", err)
+	}
+
+	router := NewRouter(config.Config{AppEnv: "test", Port: "8080", DBPath: dbPath}, db)
+
+	router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/api/v1/league/init", nil))
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/simulation/play-all", nil)
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected play-all status 200, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+
+	var response struct {
+		League struct {
+			CurrentWeek int  `json:"current_week"`
+			IsCompleted bool `json:"is_completed"`
+		} `json:"league"`
+		Weeks     []json.RawMessage `json:"weeks"`
+		Standings []struct {
+			Played int `json:"played"`
+		} `json:"standings"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode play-all response: %v", err)
+	}
+
+	if response.League.CurrentWeek != 6 || !response.League.IsCompleted {
+		t.Fatalf("unexpected league state: %+v", response.League)
+	}
+
+	if len(response.Weeks) != 6 {
+		t.Fatalf("expected 6 weeks in play-all response, got %d", len(response.Weeks))
+	}
+
+	if len(response.Standings) != 4 {
+		t.Fatalf("expected 4 standings, got %d", len(response.Standings))
+	}
+
+	for _, standing := range response.Standings {
+		if standing.Played != 6 {
+			t.Fatalf("expected each team to have played 6 matches, got %d", standing.Played)
+		}
+	}
+}

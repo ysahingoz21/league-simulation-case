@@ -52,6 +52,7 @@ func NewRouter(cfg config.Config, db *sql.DB) *gin.Engine {
 	router.GET("/api/v1/fixtures/:week", leagueHandler.ListFixturesByWeek)
 	router.POST("/api/v1/simulation/week/next", simulationHandler.PlayNextWeek)
 	router.POST("/api/v1/simulation/week/:week", simulationHandler.PlayWeek)
+	router.POST("/api/v1/simulation/play-all", simulationHandler.PlayAll)
 
 	return router
 }

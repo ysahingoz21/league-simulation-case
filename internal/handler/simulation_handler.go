@@ -70,6 +70,34 @@ func (h SimulationHandler) PlayWeek(c *gin.Context) {
 	})
 }
 
+func (h SimulationHandler) PlayAll(c *gin.Context) {
+	result, err := h.simulationService.PlayAll(c.Request.Context())
+	if err != nil {
+		h.writeSimulationError(c, err)
+		return
+	}
+
+	teams, err := h.leagueService.ListTeams(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	weeks := make([]gin.H, 0, len(result.Weeks))
+	for _, weekResult := range result.Weeks {
+		weeks = append(weeks, gin.H{
+			"week":    weekResult.Week,
+			"matches": fixtureResponses(weekResult.Matches, teams),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"league":    leagueStateResponse(result.League),
+		"weeks":     weeks,
+		"standings": standingResponses(result.Standings),
+	})
+}
+
 func (h SimulationHandler) writeSimulationError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, service.ErrLeagueNotInitialized):
