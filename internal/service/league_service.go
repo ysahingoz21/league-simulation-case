@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -9,7 +10,10 @@ import (
 	"league-simulation-case/internal/repository"
 )
 
-var ErrInvalidFixtureWeek = errors.New("invalid fixture week")
+var (
+	ErrInvalidFixtureWeek   = errors.New("invalid fixture week")
+	ErrLeagueNotInitialized = errors.New("league is not initialized")
+)
 
 type LeagueBootstrap struct {
 	League    domain.LeagueState
@@ -119,6 +123,10 @@ func (s *leagueService) Reset(ctx context.Context) (LeagueBootstrap, error) {
 func (s *leagueService) GetState(ctx context.Context) (domain.LeagueState, error) {
 	state, err := s.league.GetState(ctx)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return domain.LeagueState{}, ErrLeagueNotInitialized
+		}
+
 		return domain.LeagueState{}, fmt.Errorf("get league state: %w", err)
 	}
 
