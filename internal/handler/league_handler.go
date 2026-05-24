@@ -12,11 +12,15 @@ import (
 )
 
 type LeagueHandler struct {
-	leagueService service.LeagueService
+	leagueService    service.LeagueService
+	standingsService service.StandingsService
 }
 
-func NewLeagueHandler(leagueService service.LeagueService) LeagueHandler {
-	return LeagueHandler{leagueService: leagueService}
+func NewLeagueHandler(leagueService service.LeagueService, standingsService service.StandingsService) LeagueHandler {
+	return LeagueHandler{
+		leagueService:    leagueService,
+		standingsService: standingsService,
+	}
 }
 
 func (h LeagueHandler) InitializeLeague(c *gin.Context) {
@@ -62,6 +66,21 @@ func (h LeagueHandler) ListTeams(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"teams": teamResponses(teams)})
+}
+
+func (h LeagueHandler) ListStandings(c *gin.Context) {
+	standings, err := h.standingsService.List(c.Request.Context())
+	if err != nil {
+		if errors.Is(err, service.ErrLeagueNotInitialized) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "league is not initialized"})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"standings": standingResponses(standings)})
 }
 
 func (h LeagueHandler) ListFixtures(c *gin.Context) {

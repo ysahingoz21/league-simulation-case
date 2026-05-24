@@ -20,9 +20,10 @@ var (
 )
 
 type WeekSimulationResult struct {
-	Week    int
-	League  domain.LeagueState
-	Matches []domain.Match
+	Week      int
+	League    domain.LeagueState
+	Matches   []domain.Match
+	Standings []domain.Standing
 }
 
 type SimulationService interface {
@@ -34,6 +35,7 @@ type simulationService struct {
 	teams     repository.TeamRepository
 	matches   repository.MatchRepository
 	league    repository.LeagueRepository
+	standings StandingsService
 	simulator Simulator
 	now       func() time.Time
 }
@@ -42,12 +44,14 @@ func NewSimulationService(
 	teams repository.TeamRepository,
 	matches repository.MatchRepository,
 	league repository.LeagueRepository,
+	standings StandingsService,
 	simulator Simulator,
 ) SimulationService {
 	return &simulationService{
 		teams:     teams,
 		matches:   matches,
 		league:    league,
+		standings: standings,
 		simulator: simulator,
 		now:       time.Now,
 	}
@@ -145,6 +149,11 @@ func (s *simulationService) playWeek(ctx context.Context, week int, state domain
 		return WeekSimulationResult{}, fmt.Errorf("update league current week: %w", err)
 	}
 
+	updatedStandings, err := s.standings.Recalculate(ctx)
+	if err != nil {
+		return WeekSimulationResult{}, fmt.Errorf("recalculate standings: %w", err)
+	}
+
 	updatedState, err := s.getLeagueState(ctx)
 	if err != nil {
 		return WeekSimulationResult{}, err
@@ -156,14 +165,19 @@ func (s *simulationService) playWeek(ctx context.Context, week int, state domain
 	}
 
 	return WeekSimulationResult{
-		Week:    week,
-		League:  updatedState,
-		Matches: playedMatches,
+		Week:      week,
+		League:    updatedState,
+		Matches:   playedMatches,
+		Standings: updatedStandings,
 	}, nil
 }
 
 func (s *simulationService) getLeagueState(ctx context.Context) (domain.LeagueState, error) {
-	state, err := s.league.GetState(ctx)
+	return getLeagueState(ctx, s.league)
+}
+
+func getLeagueState(ctx context.Context, league repository.LeagueRepository) (domain.LeagueState, error) {
+	state, err := league.GetState(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return domain.LeagueState{}, ErrLeagueNotInitialized
