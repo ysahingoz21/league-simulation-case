@@ -88,7 +88,7 @@ func (r *PredictionRepository) ListLatest(ctx context.Context) ([]domain.Predict
 		FROM predictions AS p
 		JOIN teams AS t ON t.id = p.team_id
 		WHERE p.week = (SELECT MAX(week) FROM predictions)
-		ORDER BY p.projected_rank, t.name
+		ORDER BY p.championship_probability DESC, p.projected_rank ASC, t.name ASC
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("list latest predictions: %w", err)

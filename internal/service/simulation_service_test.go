@@ -18,7 +18,7 @@ type fakeSimulator struct {
 }
 
 func (f *fakeSimulator) SimulateMatch(homeTeam domain.Team, awayTeam domain.Team) (int, int) {
-	result := f.results[f.index]
+	result := f.results[f.index%len(f.results)]
 	f.index++
 	return result[0], result[1]
 }
@@ -39,6 +39,14 @@ func TestSimulationServicePlayNextWeek(t *testing.T) {
 			sqlite.NewMatchRepository(db),
 			sqlite.NewLeagueRepository(db),
 			sqlite.NewStandingRepository(db),
+		),
+		NewPredictionService(
+			sqlite.NewTeamRepository(db),
+			sqlite.NewMatchRepository(db),
+			sqlite.NewLeagueRepository(db),
+			sqlite.NewPredictionRepository(db),
+			&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
+			10,
 		),
 		&fakeSimulator{results: [][2]int{{2, 1}, {0, 0}}},
 	).(*simulationService)
@@ -90,6 +98,14 @@ func TestSimulationServiceWeekCannotBeReplayed(t *testing.T) {
 			sqlite.NewLeagueRepository(db),
 			sqlite.NewStandingRepository(db),
 		),
+		NewPredictionService(
+			sqlite.NewTeamRepository(db),
+			sqlite.NewMatchRepository(db),
+			sqlite.NewLeagueRepository(db),
+			sqlite.NewPredictionRepository(db),
+			&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
+			10,
+		),
 		&fakeSimulator{results: [][2]int{{1, 0}, {1, 1}}},
 	)
 
@@ -115,6 +131,14 @@ func TestSimulationServiceCannotPlayWeekOutOfOrder(t *testing.T) {
 			sqlite.NewLeagueRepository(db),
 			sqlite.NewStandingRepository(db),
 		),
+		NewPredictionService(
+			sqlite.NewTeamRepository(db),
+			sqlite.NewMatchRepository(db),
+			sqlite.NewLeagueRepository(db),
+			sqlite.NewPredictionRepository(db),
+			&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
+			10,
+		),
 		&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
 	)
 
@@ -139,6 +163,17 @@ func TestSimulationServicePlayingFinalWeekMarksLeagueCompleted(t *testing.T) {
 			sqlite.NewMatchRepository(db),
 			sqlite.NewLeagueRepository(db),
 			sqlite.NewStandingRepository(db),
+		),
+		NewPredictionService(
+			sqlite.NewTeamRepository(db),
+			sqlite.NewMatchRepository(db),
+			sqlite.NewLeagueRepository(db),
+			sqlite.NewPredictionRepository(db),
+			&fakeSimulator{results: [][2]int{
+				{1, 0}, {0, 1},
+				{1, 1}, {2, 0},
+			}},
+			10,
 		),
 		&fakeSimulator{results: [][2]int{
 			{1, 0}, {0, 0},
@@ -195,6 +230,14 @@ func TestSimulationServiceCompletedLeagueCannotPlayNextWeek(t *testing.T) {
 			sqlite.NewLeagueRepository(db),
 			sqlite.NewStandingRepository(db),
 		),
+		NewPredictionService(
+			sqlite.NewTeamRepository(db),
+			sqlite.NewMatchRepository(db),
+			sqlite.NewLeagueRepository(db),
+			sqlite.NewPredictionRepository(db),
+			&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
+			10,
+		),
 		&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
 	)
 
@@ -214,6 +257,14 @@ func TestSimulationServiceRequiresInitializedLeague(t *testing.T) {
 			sqlite.NewMatchRepository(db),
 			sqlite.NewLeagueRepository(db),
 			sqlite.NewStandingRepository(db),
+		),
+		NewPredictionService(
+			sqlite.NewTeamRepository(db),
+			sqlite.NewMatchRepository(db),
+			sqlite.NewLeagueRepository(db),
+			sqlite.NewPredictionRepository(db),
+			&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
+			10,
 		),
 		&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
 	)
@@ -239,6 +290,14 @@ func TestSimulationServicePlayAllFromFreshLeague(t *testing.T) {
 			sqlite.NewMatchRepository(db),
 			sqlite.NewLeagueRepository(db),
 			sqlite.NewStandingRepository(db),
+		),
+		NewPredictionService(
+			sqlite.NewTeamRepository(db),
+			sqlite.NewMatchRepository(db),
+			sqlite.NewLeagueRepository(db),
+			sqlite.NewPredictionRepository(db),
+			&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
+			10,
 		),
 		&fakeSimulator{results: [][2]int{
 			{1, 0}, {0, 0},
@@ -300,6 +359,14 @@ func TestSimulationServicePlayAllFromCurrentWeekTwo(t *testing.T) {
 			sqlite.NewLeagueRepository(db),
 			sqlite.NewStandingRepository(db),
 		),
+		NewPredictionService(
+			sqlite.NewTeamRepository(db),
+			sqlite.NewMatchRepository(db),
+			sqlite.NewLeagueRepository(db),
+			sqlite.NewPredictionRepository(db),
+			&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
+			10,
+		),
 		&fakeSimulator{results: [][2]int{
 			{1, 0}, {0, 0},
 			{2, 1}, {1, 1},
@@ -358,6 +425,14 @@ func TestSimulationServicePlayAllCannotRunWhenCompleted(t *testing.T) {
 			sqlite.NewLeagueRepository(db),
 			sqlite.NewStandingRepository(db),
 		),
+		NewPredictionService(
+			sqlite.NewTeamRepository(db),
+			sqlite.NewMatchRepository(db),
+			sqlite.NewLeagueRepository(db),
+			sqlite.NewPredictionRepository(db),
+			&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
+			10,
+		),
 		&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
 	)
 
@@ -404,6 +479,14 @@ func initializeAndPlayWeek(t *testing.T, db *sql.DB, week int) {
 			sqlite.NewMatchRepository(db),
 			sqlite.NewLeagueRepository(db),
 			sqlite.NewStandingRepository(db),
+		),
+		NewPredictionService(
+			sqlite.NewTeamRepository(db),
+			sqlite.NewMatchRepository(db),
+			sqlite.NewLeagueRepository(db),
+			sqlite.NewPredictionRepository(db),
+			&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
+			10,
 		),
 		&fakeSimulator{results: [][2]int{{1, 0}, {0, 0}}},
 	)

@@ -49,6 +49,16 @@ func (s *standingsService) Recalculate(ctx context.Context) ([]domain.Standing, 
 		return nil, fmt.Errorf("list matches for standings: %w", err)
 	}
 
+	standings := calculateStandings(teams, matches)
+
+	if err := s.standings.ReplaceAll(ctx, standings); err != nil {
+		return nil, fmt.Errorf("replace standings: %w", err)
+	}
+
+	return standings, nil
+}
+
+func calculateStandings(teams []domain.Team, matches []domain.Match) []domain.Standing {
 	standingsByTeam := make(map[int64]domain.Standing, len(teams))
 	for _, team := range teams {
 		standingsByTeam[team.ID] = domain.Standing{
@@ -80,11 +90,7 @@ func (s *standingsService) Recalculate(ctx context.Context) ([]domain.Standing, 
 	domain.SortStandings(standings)
 	domain.AssignRanks(standings)
 
-	if err := s.standings.ReplaceAll(ctx, standings); err != nil {
-		return nil, fmt.Errorf("replace standings: %w", err)
-	}
-
-	return standings, nil
+	return standings
 }
 
 func (s *standingsService) List(ctx context.Context) ([]domain.Standing, error) {
