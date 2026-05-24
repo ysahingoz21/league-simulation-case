@@ -1,8 +1,36 @@
 .DS_Store
+
 .env
+.env.*
+!.env.example
+
 *.log
+logs/
 
 bin/
+dist/
+build/
+*.out
+*.test
+coverage.out
+coverage.html
+
+go.work
+go.work.sum
+
 tmp/
+temp/
 
 .vscode/
+.idea/
+
+*.db
+*.sqlite
+*.sqlite3
+
+
+*.pdf
+
+*.postman_environment.json
+
+Thumbs.db
