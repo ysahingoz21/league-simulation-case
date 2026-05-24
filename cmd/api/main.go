@@ -6,10 +6,21 @@ import (
 
 	"league-simulation-case/internal/app"
 	"league-simulation-case/internal/config"
+	"league-simulation-case/internal/database"
 )
 
 func main() {
 	cfg := config.Load()
+	db, err := database.OpenSQLite(cfg.DBPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	if err := database.ApplySchema(db, database.DefaultSchemaPath); err != nil {
+		log.Fatal(err)
+	}
+
 	router := app.NewRouter(cfg)
 	addr := ":" + cfg.Port
 
