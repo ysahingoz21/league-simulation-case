@@ -96,3 +96,63 @@ func TestStandingsServiceListBlankStandingsAfterInit(t *testing.T) {
 		}
 	}
 }
+
+func TestStandingsServiceTotalsRemainConsistent(t *testing.T) {
+	db := newServiceTestDB(t)
+	leagueSvc := newTestLeagueService(db)
+	if _, err := leagueSvc.Initialize(context.Background()); err != nil {
+		t.Fatalf("initialize league: %v", err)
+	}
+
+	matchRepo := sqlite.NewMatchRepository(db)
+	playedAt := time.Date(2026, time.May, 24, 15, 0, 0, 0, time.UTC)
+	updates := []struct {
+		matchID   int64
+		homeGoals int
+		awayGoals int
+	}{
+		{1, 2, 1},
+		{2, 0, 0},
+		{3, 3, 2},
+		{4, 1, 4},
+	}
+	for _, update := range updates {
+		if err := matchRepo.UpdateResult(context.Background(), update.matchID, update.homeGoals, update.awayGoals, playedAt); err != nil {
+			t.Fatalf("update match %d: %v", update.matchID, err)
+		}
+	}
+
+	svc := NewStandingsService(
+		sqlite.NewTeamRepository(db),
+		matchRepo,
+		sqlite.NewLeagueRepository(db),
+		sqlite.NewStandingRepository(db),
+	)
+
+	standings, err := svc.Recalculate(context.Background())
+	if err != nil {
+		t.Fatalf("recalculate standings: %v", err)
+	}
+
+	var totalWins, totalDraws, totalLosses int
+	var totalGoalsFor, totalGoalsAgainst int
+	for _, standing := range standings {
+		totalWins += standing.Wins
+		totalDraws += standing.Draws
+		totalLosses += standing.Losses
+		totalGoalsFor += standing.GoalsFor
+		totalGoalsAgainst += standing.GoalsAgainst
+	}
+
+	if totalWins != totalLosses {
+		t.Fatalf("expected total wins (%d) to equal total losses (%d)", totalWins, totalLosses)
+	}
+
+	if totalGoalsFor != totalGoalsAgainst {
+		t.Fatalf("expected total goals for (%d) to equal total goals against (%d)", totalGoalsFor, totalGoalsAgainst)
+	}
+
+	if totalDraws%2 != 0 {
+		t.Fatalf("expected total draws to be even, got %d", totalDraws)
+	}
+}

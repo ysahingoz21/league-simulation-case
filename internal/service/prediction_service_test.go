@@ -116,7 +116,7 @@ func TestPredictionServiceGeneratesAtWeekFour(t *testing.T) {
 	}
 
 	if totalProbability < 99 || totalProbability > 101 {
-		t.Fatalf("expected probabilities to sum մոտ 100, got %f", totalProbability)
+		t.Fatalf("expected probabilities to sum approximately 100, got %f", totalProbability)
 	}
 }
 
@@ -184,6 +184,76 @@ func TestPredictionServiceCompletedLeagueReturnsDeterministicChampion(t *testing
 	for i := 1; i < len(result.Predictions); i++ {
 		if result.Predictions[i].ChampionshipProbability != 0 {
 			t.Fatalf("expected non-champions to have 0 probability, got %+v", result.Predictions[i])
+		}
+	}
+}
+
+func TestPredictionServiceReturnsPersistedLatestPredictions(t *testing.T) {
+	db := newSimulationTestDB(t)
+	leagueSvc := newTestLeagueService(db)
+	if _, err := leagueSvc.Initialize(context.Background()); err != nil {
+		t.Fatalf("initialize league: %v", err)
+	}
+
+	simSvc := NewSimulationService(
+		sqlite.NewTeamRepository(db),
+		sqlite.NewMatchRepository(db),
+		sqlite.NewLeagueRepository(db),
+		NewStandingsService(
+			sqlite.NewTeamRepository(db),
+			sqlite.NewMatchRepository(db),
+			sqlite.NewLeagueRepository(db),
+			sqlite.NewStandingRepository(db),
+		),
+		NewPredictionService(
+			sqlite.NewTeamRepository(db),
+			sqlite.NewMatchRepository(db),
+			sqlite.NewLeagueRepository(db),
+			sqlite.NewPredictionRepository(db),
+			&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
+			10,
+		),
+		&fakeSimulator{results: [][2]int{
+			{1, 0}, {0, 0},
+			{2, 1}, {1, 1},
+			{0, 1}, {3, 0},
+			{1, 2}, {2, 2},
+		}},
+	)
+	for week := 1; week <= 4; week++ {
+		if _, err := simSvc.PlayWeek(context.Background(), week); err != nil {
+			t.Fatalf("play week %d: %v", week, err)
+		}
+	}
+
+	predictionSvc := NewPredictionService(
+		sqlite.NewTeamRepository(db),
+		sqlite.NewMatchRepository(db),
+		sqlite.NewLeagueRepository(db),
+		sqlite.NewPredictionRepository(db),
+		&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
+		20,
+	)
+
+	first, err := predictionSvc.GetPredictions(context.Background())
+	if err != nil {
+		t.Fatalf("get first predictions: %v", err)
+	}
+
+	second, err := predictionSvc.GetPredictions(context.Background())
+	if err != nil {
+		t.Fatalf("get second predictions: %v", err)
+	}
+
+	if len(first.Predictions) != len(second.Predictions) {
+		t.Fatalf("expected same number of predictions, got %d and %d", len(first.Predictions), len(second.Predictions))
+	}
+
+	for i := range first.Predictions {
+		if first.Predictions[i].Week != second.Predictions[i].Week ||
+			first.Predictions[i].TeamID != second.Predictions[i].TeamID ||
+			first.Predictions[i].ChampionshipProbability != second.Predictions[i].ChampionshipProbability {
+			t.Fatalf("expected persisted latest predictions to be stable, first=%+v second=%+v", first.Predictions[i], second.Predictions[i])
 		}
 	}
 }
