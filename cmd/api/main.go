@@ -1,20 +1,22 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"league-simulation-case/internal/app"
+	"league-simulation-case/internal/config"
 )
 
 func main() {
-	router := gin.Default()
+	cfg := config.Load()
+	router := app.NewRouter(cfg)
+	addr := ":" + cfg.Port
 
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":  "ok",
-			"message": "League Simulation API is running",
-		})
-	})
+	server := &http.Server{
+		Addr:    addr,
+		Handler: router,
+	}
 
-	router.Run(":8080")
+	log.Fatal(server.ListenAndServe())
 }
