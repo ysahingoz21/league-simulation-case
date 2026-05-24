@@ -96,3 +96,11 @@ func (r *LeagueRepository) Reset(ctx context.Context) error {
 
 	return nil
 }
+
+func (r *LeagueRepository) DeleteAll(ctx context.Context) error {
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM league_state`); err != nil {
+		return fmt.Errorf("delete league state: %w", err)
+	}
+
+	return nil
+}

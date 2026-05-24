@@ -29,6 +29,7 @@ type LeagueRepository interface {
 	UpsertState(ctx context.Context, state domain.LeagueState) error
 	UpdateCurrentWeek(ctx context.Context, currentWeek int, isCompleted bool) error
 	Reset(ctx context.Context) error
+	DeleteAll(ctx context.Context) error
 }
 
 type StandingRepository interface {

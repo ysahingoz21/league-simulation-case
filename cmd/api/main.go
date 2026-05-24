@@ -21,7 +21,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	router := app.NewRouter(cfg)
+	router := app.NewRouter(cfg, db)
 	addr := ":" + cfg.Port
 
 	server := &http.Server{
