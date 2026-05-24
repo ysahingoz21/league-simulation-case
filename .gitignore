@@ -34,3 +34,5 @@ temp/
 *.postman_environment.json
 
 Thumbs.db
+
+docs/case-summary.md
