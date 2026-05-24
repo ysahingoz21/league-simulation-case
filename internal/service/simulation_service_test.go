@@ -223,6 +223,149 @@ func TestSimulationServiceRequiresInitializedLeague(t *testing.T) {
 	}
 }
 
+func TestSimulationServicePlayAllFromFreshLeague(t *testing.T) {
+	db := newSimulationTestDB(t)
+	leagueSvc := newTestLeagueService(db)
+	if _, err := leagueSvc.Initialize(context.Background()); err != nil {
+		t.Fatalf("initialize league: %v", err)
+	}
+
+	svc := NewSimulationService(
+		sqlite.NewTeamRepository(db),
+		sqlite.NewMatchRepository(db),
+		sqlite.NewLeagueRepository(db),
+		NewStandingsService(
+			sqlite.NewTeamRepository(db),
+			sqlite.NewMatchRepository(db),
+			sqlite.NewLeagueRepository(db),
+			sqlite.NewStandingRepository(db),
+		),
+		&fakeSimulator{results: [][2]int{
+			{1, 0}, {0, 0},
+			{2, 1}, {1, 1},
+			{0, 1}, {3, 0},
+			{1, 2}, {2, 2},
+			{0, 0}, {1, 0},
+			{2, 2}, {1, 3},
+		}},
+	).(*simulationService)
+	svc.now = func() time.Time { return time.Date(2026, time.May, 24, 13, 0, 0, 0, time.UTC) }
+
+	result, err := svc.PlayAll(context.Background())
+	if err != nil {
+		t.Fatalf("play all: %v", err)
+	}
+
+	if len(result.Weeks) != domain.TotalWeeks {
+		t.Fatalf("expected %d weeks played, got %d", domain.TotalWeeks, len(result.Weeks))
+	}
+
+	matchCount := 0
+	for _, week := range result.Weeks {
+		matchCount += len(week.Matches)
+	}
+	if matchCount != domain.TotalWeeks*domain.MatchesPerWeek {
+		t.Fatalf("expected %d matches played, got %d", domain.TotalWeeks*domain.MatchesPerWeek, matchCount)
+	}
+
+	if result.League.CurrentWeek != domain.TotalWeeks || !result.League.IsCompleted {
+		t.Fatalf("unexpected final league state: %+v", result.League)
+	}
+
+	if len(result.Standings) != domain.TotalTeams {
+		t.Fatalf("expected %d standings, got %d", domain.TotalTeams, len(result.Standings))
+	}
+
+	for _, standing := range result.Standings {
+		if standing.Played != domain.TotalWeeks {
+			t.Fatalf("expected team %s to have played %d matches, got %d", standing.TeamName, domain.TotalWeeks, standing.Played)
+		}
+	}
+}
+
+func TestSimulationServicePlayAllFromCurrentWeekTwo(t *testing.T) {
+	db := newSimulationTestDB(t)
+	leagueSvc := newTestLeagueService(db)
+	if _, err := leagueSvc.Initialize(context.Background()); err != nil {
+		t.Fatalf("initialize league: %v", err)
+	}
+
+	svc := NewSimulationService(
+		sqlite.NewTeamRepository(db),
+		sqlite.NewMatchRepository(db),
+		sqlite.NewLeagueRepository(db),
+		NewStandingsService(
+			sqlite.NewTeamRepository(db),
+			sqlite.NewMatchRepository(db),
+			sqlite.NewLeagueRepository(db),
+			sqlite.NewStandingRepository(db),
+		),
+		&fakeSimulator{results: [][2]int{
+			{1, 0}, {0, 0},
+			{2, 1}, {1, 1},
+			{0, 1}, {3, 0},
+			{1, 2}, {2, 2},
+			{0, 0}, {1, 0},
+			{2, 2}, {1, 3},
+		}},
+	).(*simulationService)
+	svc.now = func() time.Time { return time.Date(2026, time.May, 24, 13, 0, 0, 0, time.UTC) }
+
+	if _, err := svc.PlayWeek(context.Background(), 1); err != nil {
+		t.Fatalf("play week 1: %v", err)
+	}
+	if _, err := svc.PlayWeek(context.Background(), 2); err != nil {
+		t.Fatalf("play week 2: %v", err)
+	}
+
+	result, err := svc.PlayAll(context.Background())
+	if err != nil {
+		t.Fatalf("play all from week 3: %v", err)
+	}
+
+	if len(result.Weeks) != 4 {
+		t.Fatalf("expected 4 remaining weeks, got %d", len(result.Weeks))
+	}
+
+	if result.Weeks[0].Week != 3 || result.Weeks[len(result.Weeks)-1].Week != 6 {
+		t.Fatalf("unexpected week range: first=%d last=%d", result.Weeks[0].Week, result.Weeks[len(result.Weeks)-1].Week)
+	}
+
+	if result.League.CurrentWeek != 6 || !result.League.IsCompleted {
+		t.Fatalf("unexpected final league state: %+v", result.League)
+	}
+}
+
+func TestSimulationServicePlayAllCannotRunWhenCompleted(t *testing.T) {
+	db := newSimulationTestDB(t)
+	leagueSvc := newTestLeagueService(db)
+	if _, err := leagueSvc.Initialize(context.Background()); err != nil {
+		t.Fatalf("initialize league: %v", err)
+	}
+
+	leagueRepo := sqlite.NewLeagueRepository(db)
+	if err := leagueRepo.UpdateCurrentWeek(context.Background(), domain.TotalWeeks, true); err != nil {
+		t.Fatalf("set completed state: %v", err)
+	}
+
+	svc := NewSimulationService(
+		sqlite.NewTeamRepository(db),
+		sqlite.NewMatchRepository(db),
+		sqlite.NewLeagueRepository(db),
+		NewStandingsService(
+			sqlite.NewTeamRepository(db),
+			sqlite.NewMatchRepository(db),
+			sqlite.NewLeagueRepository(db),
+			sqlite.NewStandingRepository(db),
+		),
+		&fakeSimulator{results: [][2]int{{1, 0}, {0, 1}}},
+	)
+
+	if _, err := svc.PlayAll(context.Background()); err != ErrLeagueCompleted {
+		t.Fatalf("expected ErrLeagueCompleted, got %v", err)
+	}
+}
+
 func newSimulationTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 

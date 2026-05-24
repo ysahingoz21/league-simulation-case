@@ -26,9 +26,16 @@ type WeekSimulationResult struct {
 	Standings []domain.Standing
 }
 
+type PlayAllResult struct {
+	League    domain.LeagueState
+	Weeks     []WeekSimulationResult
+	Standings []domain.Standing
+}
+
 type SimulationService interface {
 	PlayNextWeek(ctx context.Context) (WeekSimulationResult, error)
 	PlayWeek(ctx context.Context, week int) (WeekSimulationResult, error)
+	PlayAll(ctx context.Context) (PlayAllResult, error)
 }
 
 type simulationService struct {
@@ -98,6 +105,41 @@ func (s *simulationService) PlayWeek(ctx context.Context, week int) (WeekSimulat
 	}
 
 	return s.playWeek(ctx, week, state)
+}
+
+func (s *simulationService) PlayAll(ctx context.Context) (PlayAllResult, error) {
+	state, err := s.getLeagueState(ctx)
+	if err != nil {
+		return PlayAllResult{}, err
+	}
+
+	if state.IsCompleted {
+		return PlayAllResult{}, ErrLeagueCompleted
+	}
+
+	results := make([]WeekSimulationResult, 0, state.TotalWeeks-state.CurrentWeek)
+	currentState := state
+
+	for week := currentState.CurrentWeek + 1; week <= currentState.TotalWeeks; week++ {
+		result, err := s.playWeek(ctx, week, currentState)
+		if err != nil {
+			return PlayAllResult{}, err
+		}
+
+		results = append(results, result)
+		currentState = result.League
+	}
+
+	if len(results) == 0 {
+		return PlayAllResult{}, ErrLeagueCompleted
+	}
+
+	final := results[len(results)-1]
+	return PlayAllResult{
+		League:    final.League,
+		Weeks:     results,
+		Standings: final.Standings,
+	}, nil
 }
 
 func (s *simulationService) playWeek(ctx context.Context, week int, state domain.LeagueState) (WeekSimulationResult, error) {
