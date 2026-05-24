@@ -96,3 +96,49 @@ func TestLeagueRoutesRejectInvalidWeek(t *testing.T) {
 		t.Fatalf("expected status 400, got %d body=%s", recorder.Code, recorder.Body.String())
 	}
 }
+
+func TestSimulationRoutesPlayNextWeek(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "app-simulation.db")
+	db, err := dbpkg.OpenSQLite(dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+	defer db.Close()
+
+	if err := dbpkg.ApplySchema(db, filepath.Join("..", "..", "database", "schema.sql")); err != nil {
+		t.Fatalf("apply schema: %v", err)
+	}
+
+	router := NewRouter(config.Config{AppEnv: "test", Port: "8080", DBPath: dbPath}, db)
+
+	initRecorder := httptest.NewRecorder()
+	initRequest := httptest.NewRequest(http.MethodPost, "/api/v1/league/init", nil)
+	router.ServeHTTP(initRecorder, initRequest)
+	if initRecorder.Code != http.StatusOK {
+		t.Fatalf("expected init status 200, got %d body=%s", initRecorder.Code, initRecorder.Body.String())
+	}
+
+	playRecorder := httptest.NewRecorder()
+	playRequest := httptest.NewRequest(http.MethodPost, "/api/v1/simulation/week/next", nil)
+	router.ServeHTTP(playRecorder, playRequest)
+
+	if playRecorder.Code != http.StatusOK {
+		t.Fatalf("expected simulation status 200, got %d body=%s", playRecorder.Code, playRecorder.Body.String())
+	}
+
+	var playResponse struct {
+		Week    int               `json:"week"`
+		Matches []json.RawMessage `json:"matches"`
+	}
+	if err := json.Unmarshal(playRecorder.Body.Bytes(), &playResponse); err != nil {
+		t.Fatalf("decode simulation response: %v", err)
+	}
+
+	if playResponse.Week != 1 {
+		t.Fatalf("expected simulated week 1, got %d", playResponse.Week)
+	}
+
+	if len(playResponse.Matches) != 2 {
+		t.Fatalf("expected 2 simulated matches, got %d", len(playResponse.Matches))
+	}
+}

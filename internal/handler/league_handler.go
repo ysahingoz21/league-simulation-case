@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"database/sql"
 	"errors"
 	"net/http"
 	"strconv"
@@ -43,7 +42,7 @@ func (h LeagueHandler) ResetLeague(c *gin.Context) {
 func (h LeagueHandler) GetLeague(c *gin.Context) {
 	state, err := h.leagueService.GetState(c.Request.Context())
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, service.ErrLeagueNotInitialized) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "league is not initialized"})
 			return
 		}
