@@ -49,9 +49,16 @@ func NewRouter(cfg config.Config, db *sql.DB) *gin.Engine {
 		predictionService,
 		baseSimulator,
 	)
+	matchService := service.NewMatchService(
+		matchRepository,
+		leagueRepository,
+		standingsService,
+		predictionService,
+	)
 	leagueHandler := handler.NewLeagueHandler(leagueService, standingsService)
 	simulationHandler := handler.NewSimulationHandler(simulationService, leagueService)
 	predictionHandler := handler.NewPredictionHandler(predictionService)
+	matchHandler := handler.NewMatchHandler(matchService, leagueService)
 
 	router.GET("/health", healthHandler.GetHealth)
 	router.POST("/api/v1/league/init", leagueHandler.InitializeLeague)
@@ -62,6 +69,8 @@ func NewRouter(cfg config.Config, db *sql.DB) *gin.Engine {
 	router.GET("/api/v1/predictions", predictionHandler.GetPredictions)
 	router.GET("/api/v1/fixtures", leagueHandler.ListFixtures)
 	router.GET("/api/v1/fixtures/:week", leagueHandler.ListFixturesByWeek)
+	router.GET("/api/v1/matches/:id", matchHandler.GetMatch)
+	router.PATCH("/api/v1/matches/:id", matchHandler.UpdateMatch)
 	router.POST("/api/v1/simulation/week/next", simulationHandler.PlayNextWeek)
 	router.POST("/api/v1/simulation/week/:week", simulationHandler.PlayWeek)
 	router.POST("/api/v1/simulation/play-all", simulationHandler.PlayAll)
