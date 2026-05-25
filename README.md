@@ -278,47 +278,54 @@ Base URL: `http://localhost:8080`
 Run these in order after starting the backend:
 
 ```bash
-# 1. Initialize the league
+# 1. Confirm the backend is running
+curl -s http://localhost:8080/health | jq
+
+# 2. Reset to a clean state (safe to run on first start or re-run)
+curl -s -X POST http://localhost:8080/api/v1/league/reset | jq
+
+# 3. Initialize the league
 curl -s -X POST http://localhost:8080/api/v1/league/init | jq
 
-# 2. Check league state
+# 5. Check league state
 curl -s http://localhost:8080/api/v1/league | jq
 
-# 3. List teams
+# 6. List teams
 curl -s http://localhost:8080/api/v1/teams | jq
 
-# 4. View all fixtures
+# 7. View all fixtures (note the match IDs returned here)
 curl -s http://localhost:8080/api/v1/fixtures | jq
 
-# 5. Play week 1
+# 8. Play week 1
 curl -s -X POST http://localhost:8080/api/v1/simulation/week/next | jq
 
-# 6. Check standings
+# 9. Check standings
 curl -s http://localhost:8080/api/v1/standings | jq
 
-# 7. Play weeks 2, 3, 4
+# 10. Play weeks 2, 3, 4
 curl -s -X POST http://localhost:8080/api/v1/simulation/week/next | jq
 curl -s -X POST http://localhost:8080/api/v1/simulation/week/next | jq
 curl -s -X POST http://localhost:8080/api/v1/simulation/week/next | jq
 
-# 8. Get predictions (available from week 4)
+# 11. Get predictions (available from week 4)
 curl -s http://localhost:8080/api/v1/predictions | jq
 
-# 9. Edit match 1 result
-curl -s -X PATCH http://localhost:8080/api/v1/matches/1 \
+# 12. Edit a played match result
+# Match IDs depend on database state. Use GET /api/v1/fixtures to find a valid played match ID.
+curl -s -X PATCH http://localhost:8080/api/v1/matches/MATCH_ID \
   -H "Content-Type: application/json" \
   -d '{"home_goals": 3, "away_goals": 0}' | jq
 
-# 10. Confirm standings updated
+# 13. Confirm standings updated
 curl -s http://localhost:8080/api/v1/standings | jq
 
-# 11. Play all remaining weeks
+# 14. Play all remaining weeks
 curl -s -X POST http://localhost:8080/api/v1/simulation/play-all | jq
 
-# 12. Final predictions
+# 15. Final predictions
 curl -s http://localhost:8080/api/v1/predictions | jq
 
-# 13. Reset for a fresh run
+# 16. Reset for another run
 curl -s -X POST http://localhost:8080/api/v1/league/reset | jq
 ```
 
