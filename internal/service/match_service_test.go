@@ -14,6 +14,10 @@ func TestMatchServiceUpdatePlayedMatchRecalculatesStandings(t *testing.T) {
 	if _, err := leagueSvc.Initialize(context.Background()); err != nil {
 		t.Fatalf("initialize league: %v", err)
 	}
+	originalMatch, err := sqlite.NewMatchRepository(db).GetByID(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("get original match: %v", err)
+	}
 
 	simSvc := NewSimulationService(
 		sqlite.NewTeamRepository(db),
@@ -67,8 +71,8 @@ func TestMatchServiceUpdatePlayedMatchRecalculatesStandings(t *testing.T) {
 		t.Fatalf("unexpected updated match: %+v", result.Match)
 	}
 
-	if result.Standings[0].TeamName != "B Team" || result.Standings[0].Points != 3 {
-		t.Fatalf("expected B Team to lead after edit, got %+v", result.Standings[0])
+	if result.Standings[0].TeamID != originalMatch.AwayTeamID || result.Standings[0].Points != 3 {
+		t.Fatalf("expected away team to lead after edit, got %+v", result.Standings[0])
 	}
 
 	refetched, err := matchSvc.GetMatch(context.Background(), 1)

@@ -1,10 +1,11 @@
 <template>
-  <section class="card table-card">
-    <div class="section-heading">
-      <div>
-        <p class="section-kicker">Standings</p>
-        <h2>League Table</h2>
-      </div>
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">League Standings</h2>
+      <span class="badge badge-live">
+        <span class="badge-dot"></span>
+        Live Updates
+      </span>
     </div>
 
     <div v-if="standings.length === 0" class="empty-state">
@@ -15,8 +16,8 @@
       <table class="standings-table">
         <thead>
           <tr>
-            <th>Rank</th>
-            <th>Team</th>
+            <th>RANK</th>
+            <th class="team-col">Team</th>
             <th>P</th>
             <th>W</th>
             <th>D</th>
@@ -24,13 +25,18 @@
             <th>GF</th>
             <th>GA</th>
             <th>GD</th>
-            <th>Pts</th>
+            <th>PTS</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="standing in standings" :key="standing.team_id">
-            <td>{{ standing.rank }}</td>
-            <td class="team-cell">{{ standing.team_name }}</td>
+            <td :class="['rank-cell', { 'rank-cell--first': standing.rank === 1 }]">{{ standing.rank }}</td>
+            <td class="team-cell">
+              <div class="team-display">
+                <TeamAvatar :team-name="standing.team_name" />
+                <span class="team-name">{{ standing.team_name }}</span>
+              </div>
+            </td>
             <td>{{ standing.played }}</td>
             <td>{{ standing.wins }}</td>
             <td>{{ standing.draws }}</td>
@@ -49,6 +55,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 
+import TeamAvatar from './TeamAvatar.vue'
 import { useLeagueStore } from '../stores/leagueStore'
 
 const leagueStore = useLeagueStore()

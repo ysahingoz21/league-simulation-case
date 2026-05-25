@@ -1,20 +1,27 @@
 <template>
-  <section class="card fixtures-card">
-    <div class="section-heading">
-      <div>
-        <p class="section-kicker">Fixtures</p>
-        <h2>Match Schedule</h2>
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">Match Center</h2>
+      <div class="week-tabs">
+        <button
+          class="week-tab"
+          :class="{ 'week-tab--active': selectedWeek === null }"
+          type="button"
+          @click="leagueStore.setSelectedWeek(null)"
+        >
+          All
+        </button>
+        <button
+          v-for="week in weeks"
+          :key="week"
+          class="week-tab"
+          :class="{ 'week-tab--active': selectedWeek === week }"
+          type="button"
+          @click="leagueStore.setSelectedWeek(week)"
+        >
+          Week {{ week }}
+        </button>
       </div>
-
-      <label class="week-filter">
-        <span>Filter</span>
-        <select :value="selectedWeekModel" @change="onWeekChange">
-          <option value="all">All weeks</option>
-          <option v-for="week in weeks" :key="week" :value="week">
-            Week {{ week }}
-          </option>
-        </select>
-      </label>
     </div>
 
     <div v-if="groupedFixtures.length === 0" class="empty-state">
@@ -27,14 +34,13 @@
         :key="group.week"
         class="fixture-group"
       >
-        <header class="fixture-group__header">
-          <h3>Week {{ group.week }}</h3>
-        </header>
+        <p class="fixture-week-label">Week {{ group.week }}</p>
         <div class="fixture-list">
           <MatchCard
             v-for="match in group.matches"
             :key="match.id"
             :match="match"
+            @edit-match="$emit('edit-match', $event)"
           />
         </div>
       </section>
@@ -49,21 +55,21 @@ import { storeToRefs } from 'pinia'
 import MatchCard from './MatchCard.vue'
 import { useLeagueStore } from '../stores/leagueStore'
 
-const weeks = [1, 2, 3, 4, 5, 6]
+defineEmits<{
+  (event: 'edit-match', match: import('../types/league').Match): void
+}>()
 
 const leagueStore = useLeagueStore()
 const { fixtures, selectedWeek } = storeToRefs(leagueStore)
 
-const selectedWeekModel = computed(() =>
-  selectedWeek.value === null ? 'all' : String(selectedWeek.value),
-)
+const weeks = computed(() => {
+  const weekSet = new Set(fixtures.value.map(f => f.week))
+  return Array.from(weekSet).sort((a, b) => a - b)
+})
 
 const filteredFixtures = computed(() => {
-  if (selectedWeek.value === null) {
-    return fixtures.value
-  }
-
-  return fixtures.value.filter((fixture) => fixture.week === selectedWeek.value)
+  if (selectedWeek.value === null) return fixtures.value
+  return fixtures.value.filter(f => f.week === selectedWeek.value)
 })
 
 const groupedFixtures = computed(() => {
@@ -75,15 +81,10 @@ const groupedFixtures = computed(() => {
   }
 
   return Array.from(groups.entries())
-    .sort(([left], [right]) => left - right)
+    .sort(([a], [b]) => a - b)
     .map(([week, matches]) => ({
       week,
-      matches: matches.sort((left, right) => left.id - right.id),
+      matches: matches.sort((a, b) => a.id - b.id),
     }))
 })
-
-function onWeekChange(event: Event) {
-  const value = (event.target as HTMLSelectElement).value
-  leagueStore.setSelectedWeek(value === 'all' ? null : Number(value))
-}
 </script>

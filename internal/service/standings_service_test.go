@@ -17,6 +17,14 @@ func TestStandingsServiceRecalculate(t *testing.T) {
 	}
 
 	matchRepo := sqlite.NewMatchRepository(db)
+	matchOne, err := matchRepo.GetByID(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("get match 1: %v", err)
+	}
+	matchTwo, err := matchRepo.GetByID(context.Background(), 2)
+	if err != nil {
+		t.Fatalf("get match 2: %v", err)
+	}
 	playedAt := time.Date(2026, time.May, 24, 14, 0, 0, 0, time.UTC)
 	if err := matchRepo.UpdateResult(context.Background(), 1, 2, 1, playedAt); err != nil {
 		t.Fatalf("update match 1: %v", err)
@@ -44,19 +52,19 @@ func TestStandingsServiceRecalculate(t *testing.T) {
 		t.Fatalf("expected %d standings, got %d", domain.TotalTeams, len(standings))
 	}
 
-	if standings[0].TeamName != "A Team" || standings[0].Points != 6 || standings[0].GoalDifference != 4 {
+	if standings[0].TeamID != matchOne.HomeTeamID || standings[0].Points != 6 || standings[0].GoalDifference != 4 {
 		t.Fatalf("unexpected first standing: %+v", standings[0])
 	}
 
-	if standings[1].TeamName != "D Team" || standings[1].Points != 1 || standings[1].Draws != 1 || standings[1].GoalDifference != 0 {
+	if standings[1].TeamID != matchTwo.AwayTeamID || standings[1].Points != 1 || standings[1].Draws != 1 || standings[1].GoalDifference != 0 {
 		t.Fatalf("unexpected second standing: %+v", standings[1])
 	}
 
-	if standings[2].TeamName != "C Team" || standings[2].Points != 1 || standings[2].GoalsFor != 1 || standings[2].GoalsAgainst != 4 || standings[2].GoalDifference != -3 {
+	if standings[2].TeamID != matchTwo.HomeTeamID || standings[2].Points != 1 || standings[2].GoalsFor != 1 || standings[2].GoalsAgainst != 4 || standings[2].GoalDifference != -3 {
 		t.Fatalf("unexpected third standing: %+v", standings[2])
 	}
 
-	if standings[3].TeamName != "B Team" || standings[3].Points != 0 || standings[3].Losses != 1 {
+	if standings[3].TeamID != matchOne.AwayTeamID || standings[3].Points != 0 || standings[3].Losses != 1 {
 		t.Fatalf("unexpected fourth standing: %+v", standings[3])
 	}
 

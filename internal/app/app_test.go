@@ -326,6 +326,14 @@ func TestMatchRoutesGetAndPatch(t *testing.T) {
 	if getRecorder.Code != http.StatusOK {
 		t.Fatalf("expected get match status 200, got %d body=%s", getRecorder.Code, getRecorder.Body.String())
 	}
+	var getResponse struct {
+		Match struct {
+			AwayTeamID int64 `json:"away_team_id"`
+		} `json:"match"`
+	}
+	if err := json.Unmarshal(getRecorder.Body.Bytes(), &getResponse); err != nil {
+		t.Fatalf("decode get match response: %v", err)
+	}
 
 	body := bytes.NewBufferString(`{"home_goals":0,"away_goals":3}`)
 	patchRecorder := httptest.NewRecorder()
@@ -339,7 +347,8 @@ func TestMatchRoutesGetAndPatch(t *testing.T) {
 
 	var patchResponse struct {
 		Standings []struct {
-			TeamName string `json:"team_name"`
+			TeamID int64 `json:"team_id"`
+			Points int   `json:"points"`
 		} `json:"standings"`
 	}
 	if err := json.Unmarshal(patchRecorder.Body.Bytes(), &patchResponse); err != nil {
@@ -350,8 +359,8 @@ func TestMatchRoutesGetAndPatch(t *testing.T) {
 		t.Fatalf("expected 4 standings, got %d", len(patchResponse.Standings))
 	}
 
-	if patchResponse.Standings[0].TeamName != "B Team" {
-		t.Fatalf("expected B Team to lead after edit, got %s", patchResponse.Standings[0].TeamName)
+	if patchResponse.Standings[0].TeamID != getResponse.Match.AwayTeamID || patchResponse.Standings[0].Points != 3 {
+		t.Fatalf("expected away team to lead after edit, got %+v", patchResponse.Standings[0])
 	}
 }
 

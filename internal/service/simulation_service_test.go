@@ -29,6 +29,10 @@ func TestSimulationServicePlayNextWeek(t *testing.T) {
 	if _, err := leagueSvc.Initialize(context.Background()); err != nil {
 		t.Fatalf("initialize league: %v", err)
 	}
+	weekOneMatches, err := sqlite.NewMatchRepository(db).ListByWeek(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("list week 1 matches: %v", err)
+	}
 
 	svc := NewSimulationService(
 		sqlite.NewTeamRepository(db),
@@ -73,7 +77,7 @@ func TestSimulationServicePlayNextWeek(t *testing.T) {
 		t.Fatalf("expected %d standings, got %d", domain.TotalTeams, len(result.Standings))
 	}
 
-	if result.Standings[0].Points != 3 || result.Standings[0].TeamName != "A Team" {
+	if result.Standings[0].Points != 3 || result.Standings[0].TeamID != weekOneMatches[0].HomeTeamID {
 		t.Fatalf("unexpected leading standing: %+v", result.Standings[0])
 	}
 
