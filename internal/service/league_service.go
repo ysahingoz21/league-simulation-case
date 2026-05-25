@@ -184,9 +184,9 @@ func (s *leagueService) clearLeagueData(ctx context.Context) error {
 
 func defaultTeams() []domain.Team {
 	return []domain.Team{
-		{Name: "Türkiye", Strength: 95},
-		{Name: "ABD", Strength: 85},
-		{Name: "Avustralya", Strength: 80},
+		{Name: "Turkey", Strength: 95},
+		{Name: "USA", Strength: 85},
+		{Name: "Australia", Strength: 80},
 		{Name: "Paraguay", Strength: 75},
 	}
 }

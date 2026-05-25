@@ -1,29 +1,33 @@
 <template>
-  <section class="card status-card">
-    <div class="section-heading">
-      <div>
-        <p class="section-kicker">League Status</p>
-        <h2>Current Snapshot</h2>
-      </div>
-      <span class="status-pill" :class="statusClass">{{ statusLabel }}</span>
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">Current Season Meta</h2>
+      <span class="badge" :class="statusBadgeClass">{{ statusLabel }}</span>
     </div>
 
     <div class="stats-grid">
-      <article class="stat-item">
-        <span class="stat-label">Current Week</span>
-        <strong class="stat-value">{{ league?.current_week ?? '-' }}</strong>
+      <article class="stat-tile">
+        <span class="stat-label">Week</span>
+        <strong class="stat-value">
+          {{ currentWeek }}<span class="stat-fraction">/{{ totalWeeks }}</span>
+        </strong>
       </article>
-      <article class="stat-item">
-        <span class="stat-label">Total Weeks</span>
-        <strong class="stat-value">{{ league?.total_weeks ?? 6 }}</strong>
-      </article>
-      <article class="stat-item">
+
+      <article class="stat-tile">
         <span class="stat-label">Teams</span>
         <strong class="stat-value">{{ teams.length }}</strong>
       </article>
-      <article class="stat-item">
-        <span class="stat-label">Fixtures</span>
-        <strong class="stat-value">{{ fixtures.length }}</strong>
+
+      <article class="stat-tile">
+        <span class="stat-label">Played</span>
+        <strong class="stat-value">
+          {{ playedCount }}<span class="stat-fraction">/{{ fixtures.length }}</span>
+        </strong>
+      </article>
+
+      <article class="stat-tile">
+        <span class="stat-label">Status</span>
+        <strong class="stat-value-sm">{{ statusLabel }}</strong>
       </article>
     </div>
   </section>
@@ -39,18 +43,19 @@ const leagueStore = useLeagueStore()
 const { league, teams, fixtures } = storeToRefs(leagueStore)
 
 const statusLabel = computed(() => {
-  if (!league.value) {
-    return 'Not initialized'
-  }
-
-  return league.value.is_completed ? 'Completed' : 'In progress'
+  if (!league.value) return 'Not Initialized'
+  return league.value.is_completed ? 'Completed' : 'In Progress'
 })
 
-const statusClass = computed(() => {
-  if (!league.value) {
-    return 'status-pill-neutral'
-  }
-
-  return league.value.is_completed ? 'status-pill-complete' : 'status-pill-live'
+const statusBadgeClass = computed(() => {
+  if (!league.value) return 'badge-neutral'
+  return league.value.is_completed ? 'badge-complete' : 'badge-live'
 })
+
+const currentWeek = computed(() => league.value?.current_week ?? '-')
+const totalWeeks = computed(() => league.value?.total_weeks ?? 6)
+
+const playedCount = computed(() =>
+  fixtures.value.filter(f => f.status === 'played').length,
+)
 </script>

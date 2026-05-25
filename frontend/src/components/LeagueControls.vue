@@ -1,65 +1,65 @@
 <template>
-  <section class="card controls-card">
-    <div class="section-heading">
-      <div>
-        <p class="section-kicker">Controls</p>
-        <h2>League Actions</h2>
-      </div>
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">League Controls</h2>
       <button
         v-if="error"
-        class="button button-ghost"
+        class="btn btn-ghost btn-sm"
         type="button"
         @click="leagueStore.clearError()"
       >
-        Dismiss Error
+        Dismiss
       </button>
     </div>
 
-    <div v-if="error" class="error-banner">
-      {{ error }}
-    </div>
+    <div v-if="error" class="error-banner">{{ error }}</div>
 
-    <div class="button-grid">
+    <div class="controls-actions">
       <button
-        class="button"
+        class="btn btn-primary btn-primary--dark-text btn-block controls-btn-lg"
+        type="button"
+        :disabled="loading || isCompleted"
+        @click="runAction(leagueStore.playNextWeek)"
+      >
+        ▶ Play Next Week
+      </button>
+
+      <button
+        class="btn btn-secondary btn-block controls-btn-lg"
         type="button"
         :disabled="loading"
         @click="runAction(leagueStore.initializeLeague)"
       >
         Initialize League
       </button>
+
       <button
-        class="button"
-        type="button"
-        :disabled="loading"
-        @click="runAction(leagueStore.resetLeague)"
-      >
-        Reset League
-      </button>
-      <button
-        class="button button-accent"
-        type="button"
-        :disabled="loading || isCompleted"
-        @click="runAction(leagueStore.playNextWeek)"
-      >
-        Play Next Week
-      </button>
-      <button
-        class="button button-accent"
+        class="btn btn-secondary btn-block controls-btn-lg"
         type="button"
         :disabled="loading || isCompleted"
         @click="runAction(leagueStore.playAll)"
       >
         Play All Remaining
       </button>
-      <button
-        class="button button-ghost"
-        type="button"
-        :disabled="loading"
-        @click="runAction(leagueStore.refreshAll)"
-      >
-        Refresh
-      </button>
+
+      <div class="controls-actions-row">
+        <button
+          class="btn btn-ghost btn-sm"
+          type="button"
+          :disabled="loading"
+          @click="runAction(leagueStore.resetLeague)"
+        >
+          Reset League
+        </button>
+        <button
+          class="btn btn-ghost btn-sm"
+          type="button"
+          :disabled="loading"
+          @click="runAction(leagueStore.refreshAll)"
+        >
+          Refresh
+        </button>
+      </div>
     </div>
   </section>
 </template>
@@ -79,7 +79,6 @@ async function runAction<T>(action: () => Promise<T>) {
   try {
     await action()
   } catch {
-    // Store owns error state.
   }
 }
 </script>
